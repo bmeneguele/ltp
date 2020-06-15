@@ -15,14 +15,24 @@ test1()
 {
 	tst_res TINFO "verify boot aggregate"
 
-	local zero="0000000000000000000000000000000000000000"
 	local tpm_bios="$SECURITYFS/tpm0/binary_bios_measurements"
 	local ima_measurements="$ASCII_MEASUREMENTS"
-	local boot_aggregate boot_hash line
+	local boot_aggregate boot_hash boot_hash_algo line zero
 
 	# IMA boot aggregate
 	read line < $ima_measurements
+	boot_hash_algo=$(echo $line | awk '{print $(NF-1)}' | cut -d':' -f1)
 	boot_hash=$(echo $line | awk '{print $(NF-1)}' | cut -d':' -f2)
+
+	# The hash algorithm used for boot_aggregate depends on the TPM version and on the firmware
+	# selection in case the TPM support multiple PCR banks:
+	#   TPM1.2 = sha1
+	#   TPM2.0 = sha1 || sha256 (depending on firmware selection)
+	if [ "$boot_hash_algo" = "sha256" ] ; then
+		zero="0000000000000000000000000000000000000000000000000000000000000000"
+	else
+		zero="0000000000000000000000000000000000000000"
+	fi
 
 	if [ ! -f "$tpm_bios" ]; then
 		tst_res TINFO "TPM Hardware Support not enabled in kernel or no TPM chip found"
